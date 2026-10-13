@@ -56,6 +56,17 @@ jobs:
           ref: ${{ inputs.ref }}
           path: target
 
+      # JDK for SCA on JVM projects: Snyk resolves Gradle/Maven deps by invoking
+      # the project's build tool, which needs a JDK on the runner. Without it the
+      # Gradle wrapper fails with "Could not find or load main class
+      # GradleWrapperMain". Harmless for non-JVM targets, so gated on sca only.
+      - name: Setup JDK
+        if: inputs.type == 'sca'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       # Install Snyk CLI (puts `snyk` on PATH, no Docker required)
       - name: Setup Snyk CLI
         uses: snyk/actions/setup@master
