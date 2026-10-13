@@ -1,0 +1,109 @@
+name: Snyk scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      type:
+        description: "Scan type: sca=Open Source, code=SAST, container=Container image"
+        type: choice
+        options:
+          - sca
+          - code
+          - container
+        default: sca
+      target:
+        description: "git repo slug owner/repo (for sca/code) OR image ref like alpine:3.19 (for container)"
+        type: string
+        required: true
+      ref:
+        description: "Optional git ref/branch for target repo checkout (sca/code only)"
+        type: string
+        default: ""
+      severity:
+        description: "Minimum severity threshold to report"
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+          - critical
+        default: low
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    steps:
+      # Fail early if SNYK_TOKEN is not set — free Snyk still requires authentication
+      - name: Check SNYK_TOKEN
+        run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "::error::SNYK_TOKEN secret is not set. Add it via: gh secret set SNYK_TOKEN"
+            exit 1
+          fi
+
+      # Checkout the TARGET repo (only for sca / code — target must be owner/repo slug)
+      - name: Checkout target repo
+        if: inputs.type != 'container'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.target }}
+          ref: ${{ inputs.ref }}
+          path: target
+
+      # Install Snyk CLI (puts `snyk` on PATH, no Docker required)
+      - name: Setup Snyk CLI
+        uses: snyk/actions/setup@master
+
+      # --- SCA (Snyk Open Source) ---
+      - name: Snyk SCA scan
+        if: inputs.type == 'sca'
+        continue-on-error: true
+        working-directory: target
+        run: |
+          snyk test \
+            --sarif-file-output=$GITHUB_WORKSPACE/snyk.sarif \
+            --severity-threshold=${{ inputs.severity }}
+
+      # --- SAST (Snyk Code) ---
+      - name: Snyk Code scan
+        if: inputs.type == 'code'
+        continue-on-error: true
+        working-directory: target
+        run: |
+          snyk code test \
+            --sarif-file-output=$GITHUB_WORKSPACE/snyk.sarif \
+            --severity-threshold=${{ inputs.severity }}
+
+      # --- Container scan (no checkout; Snyk pulls the image itself) ---
+      - name: Snyk Container scan
+        if: inputs.type == 'container'
+        continue-on-error: true
+        run: |
+          snyk container test ${{ inputs.target }} \
+            --sarif-file-output=$GITHUB_WORKSPACE/snyk.sarif \
+            --severity-threshold=${{ inputs.severity }}
+
+      # Upload SARIF to GitHub Code Scanning (Security tab)
+      # Runs even if the scan step found vulnerabilities; skips if no sarif was produced
+      - name: Upload SARIF to Code Scanning
+        if: always() && hashFiles('snyk.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk.sarif
+
+      # Also upload snyk.sarif as a downloadable build artifact
+      # Useful when Code Scanning is disabled on the repo
+      - name: Upload SARIF as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-sarif
+          path: snyk.sarif
+          if-no-files-found: ignore
