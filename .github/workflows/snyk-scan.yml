@@ -96,7 +96,7 @@ jobs:
         working-directory: target
         run: |
           snyk test \
-            ${{ inputs.all_projects && '--all-projects --detection-depth=4' || '' }} \
+            ${{ inputs.all_projects && '--all-projects' || '' }} \
             --json-file-output=$GITHUB_WORKSPACE/snyk.json \
             --sarif-file-output=$GITHUB_WORKSPACE/snyk.sarif \
             --severity-threshold=${{ inputs.severity }}
