@@ -1,5 +1,10 @@
 name: Snyk scan
 
+# Dynamic title so the Actions run list shows WHAT was scanned, not just "Snyk scan".
+# e.g. "Snyk · sca · vitado/ai-dial-core@development · low" or "Snyk · container · alpine:3.19 · high".
+run-name: >-
+  Snyk · ${{ inputs.type }} · ${{ inputs.target }}${{ inputs.ref != '' && format('@{0}', inputs.ref) || '' }} · ${{ inputs.severity }}
+
 on:
   workflow_dispatch:
     inputs:
