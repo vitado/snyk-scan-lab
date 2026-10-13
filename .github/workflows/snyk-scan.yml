@@ -31,7 +31,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   scan:
@@ -44,7 +43,7 @@ jobs:
       - name: Check SNYK_TOKEN
         run: |
           if [ -z "$SNYK_TOKEN" ]; then
-            echo "::error::SNYK_TOKEN secret is not set. Add it via: gh secret set SNYK_TOKEN"
+            echo "::error::SNYK_TOKEN secret is not set. Add it via: gh secret set SNYK_TOKEN -R <owner/repo>"
             exit 1
           fi
 
@@ -62,16 +61,18 @@ jobs:
         uses: snyk/actions/setup@master
 
       # --- SCA (Snyk Open Source) ---
+      # continue-on-error: a found vuln (exit 1) must not fail the artifact upload.
       - name: Snyk SCA scan
         if: inputs.type == 'sca'
         continue-on-error: true
         working-directory: target
         run: |
           snyk test \
+            --json-file-output=$GITHUB_WORKSPACE/snyk.json \
             --sarif-file-output=$GITHUB_WORKSPACE/snyk.sarif \
             --severity-threshold=${{ inputs.severity }}
 
-      # --- SAST (Snyk Code) ---
+      # --- SAST (Snyk Code) --- requires Snyk Code enabled in the org settings
       - name: Snyk Code scan
         if: inputs.type == 'code'
         continue-on-error: true
@@ -87,23 +88,19 @@ jobs:
         continue-on-error: true
         run: |
           snyk container test ${{ inputs.target }} \
+            --json-file-output=$GITHUB_WORKSPACE/snyk.json \
             --sarif-file-output=$GITHUB_WORKSPACE/snyk.sarif \
             --severity-threshold=${{ inputs.severity }}
 
-      # Upload SARIF to GitHub Code Scanning (Security tab)
-      # Runs even if the scan step found vulnerabilities; skips if no sarif was produced
-      - name: Upload SARIF to Code Scanning
-        if: always() && hashFiles('snyk.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: snyk.sarif
-
-      # Also upload snyk.sarif as a downloadable build artifact
-      # Useful when Code Scanning is disabled on the repo
-      - name: Upload SARIF as artifact
+      # Results as a downloadable artifact (snyk.json + snyk.sarif). No code-scanning
+      # upload: this stand scans arbitrary targets, so their findings do not belong in
+      # this repo's Security tab. Download the artifact from the run to inspect results.
+      - name: Upload results artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: snyk-sarif
-          path: snyk.sarif
+          name: snyk-results-${{ inputs.type }}
+          path: |
+            snyk.sarif
+            snyk.json
           if-no-files-found: ignore
