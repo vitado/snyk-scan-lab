@@ -37,6 +37,10 @@ on:
         description: "SCA scope: scan all sub-projects/manifests (--all-projects). Off = root manifest only."
         type: boolean
         default: true
+      java_version:
+        description: "JDK for SCA on JVM projects. Must match the target's build (e.g. ai-dial-core = 21), else Gradle resolves a different dependency graph."
+        type: string
+        default: "21"
 
 permissions:
   contents: read
@@ -78,7 +82,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: ${{ inputs.java_version }}
 
       # Install Snyk CLI (puts `snyk` on PATH, no Docker required)
       - name: Setup Snyk CLI
