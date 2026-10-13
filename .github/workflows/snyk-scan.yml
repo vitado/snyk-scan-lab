@@ -47,7 +47,10 @@ jobs:
             exit 1
           fi
 
-      # Checkout the TARGET repo (only for sca / code — target must be owner/repo slug)
+      # Checkout the TARGET repo (only for sca / code — target must be owner/repo slug).
+      # lfs: true — some projects (e.g. ai-dial-core) store the Gradle wrapper jar in
+      # Git LFS; without this the runner gets an LFS pointer instead of the real jar and
+      # Snyk's Gradle analysis fails with ClassNotFoundException: GradleWrapperMain.
       - name: Checkout target repo
         if: inputs.type != 'container'
         uses: actions/checkout@v4
@@ -55,6 +58,7 @@ jobs:
           repository: ${{ inputs.target }}
           ref: ${{ inputs.ref }}
           path: target
+          lfs: true
 
       # JDK for SCA on JVM projects: Snyk resolves Gradle/Maven deps by invoking
       # the project's build tool, which needs a JDK on the runner. Without it the
