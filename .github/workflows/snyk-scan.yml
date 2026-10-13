@@ -41,6 +41,11 @@ on:
         description: "JDK for SCA on JVM projects. Must match the target's build (e.g. ai-dial-core = 21), else Gradle resolves a different dependency graph."
         type: string
         default: "21"
+      snyk_token:
+        description: "OPTIONAL Snyk API token. If set, overrides the SNYK_TOKEN secret for this run (use for a one-off / different account). Leave empty to use the repo secret. The value is masked in logs and never printed."
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -48,15 +53,23 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
+    # Token source: the optional `snyk_token` dispatch input wins when non-empty,
+    # otherwise fall back to the repo secret. Exposed only as an env var (never
+    # inlined into a `run:` command), so it is not expanded into any step's log.
     env:
-      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      SNYK_TOKEN: ${{ inputs.snyk_token != '' && inputs.snyk_token || secrets.SNYK_TOKEN }}
 
     steps:
-      # Fail early if SNYK_TOKEN is not set — free Snyk still requires authentication
-      - name: Check SNYK_TOKEN
+      # Mask the token in logs and fail early if it is not set — free Snyk still
+      # requires authentication. The value is referenced only via $SNYK_TOKEN and
+      # is never echoed; `::add-mask::` makes GitHub redact it anywhere it leaks.
+      - name: Mask and check SNYK_TOKEN
         run: |
+          if [ -n "$SNYK_TOKEN" ]; then
+            echo "::add-mask::$SNYK_TOKEN"
+          fi
           if [ -z "$SNYK_TOKEN" ]; then
-            echo "::error::SNYK_TOKEN secret is not set. Add it via: gh secret set SNYK_TOKEN -R <owner/repo>"
+            echo "::error::No Snyk token available. Set the SNYK_TOKEN secret (gh secret set SNYK_TOKEN -R <owner/repo>) or pass the optional snyk_token input."
             exit 1
           fi
 
