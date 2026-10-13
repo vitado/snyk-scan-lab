@@ -55,9 +55,9 @@ gh workflow run snyk-scan.yml \
 
 ## Где смотреть результаты
 
-- **Run → Artifacts → `snyk-results-<type>`** — архив с `snyk.sarif` и `snyk.json`
-  (для sca/container). Скачай и открой: `.json` — читаемый список уязвимостей,
-  `.sarif` — для импорта в другие инструменты.
+- **Run → Artifacts → `snyk-results-<type>`** — архив с `snyk.html`, `snyk.json`,
+  `snyk.sarif` (для sca/container; у `code` только SARIF). Открой `.html` в браузере —
+  готовый отчёт; `.json` — машиночитаемый; `.sarif` — для импорта в другие инструменты.
 - **Лог шага скана** в прогоне — текстовый вывод Snyk с найденными проблемами.
 
 Специально **не** публикуем в Security → Code scanning: стенд сканирует чужие

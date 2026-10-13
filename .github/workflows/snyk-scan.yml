@@ -92,9 +92,15 @@ jobs:
             --sarif-file-output=$GITHUB_WORKSPACE/snyk.sarif \
             --severity-threshold=${{ inputs.severity }}
 
-      # Results as a downloadable artifact (snyk.json + snyk.sarif). No code-scanning
-      # upload: this stand scans arbitrary targets, so their findings do not belong in
-      # this repo's Security tab. Download the artifact from the run to inspect results.
+      # HTML report from snyk.json via the official snyk-to-html (sca/container only;
+      # Snyk's own --html-file-output is a preview feature, unavailable on free).
+      - name: HTML report
+        if: always() && hashFiles('snyk.json') != ''
+        run: npx -y snyk-to-html -i "$GITHUB_WORKSPACE/snyk.json" -o "$GITHUB_WORKSPACE/snyk.html"
+
+      # Results as a downloadable artifact (snyk.json + snyk.sarif + snyk.html). No
+      # code-scanning upload: this stand scans arbitrary targets, so their findings do
+      # not belong in this repo's Security tab. Download the artifact to inspect results.
       - name: Upload results artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -103,4 +109,5 @@ jobs:
           path: |
             snyk.sarif
             snyk.json
+            snyk.html
           if-no-files-found: ignore
