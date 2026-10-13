@@ -1,75 +1,75 @@
 # Snyk Scan Lab
 
-Параметризованный стенд для ручного запуска Snyk-сканов на **произвольных** публичных репозиториях или образах. Результаты скачиваются как артефакт прогона (`snyk.json` + `snyk.sarif`). Пригоден для переска: тот же workflow с другими параметрами.
+A parameterized stand for manually running Snyk scans against **arbitrary** public repositories or images. Results are downloaded as a run artifact (`snyk.json` + `snyk.sarif`). Suitable for re-scans: the same workflow with different parameters.
 
-## Предварительные условия
+## Prerequisites
 
-Добавьте секрет `SNYK_TOKEN` в репозиторий (бесплатный Snyk всё равно требует авторизацию):
+Add the `SNYK_TOKEN` secret to the repository (free Snyk still requires authentication):
 
 ```bash
 gh secret set SNYK_TOKEN -R vitado/snyk-scan-lab
 ```
 
-Токен можно получить на [app.snyk.io/account](https://app.snyk.io/account) (General → API Token).
+The token can be obtained at [app.snyk.io/account](https://app.snyk.io/account) (General → API Token).
 
-## Как запустить
+## How to run
 
-**Через UI:**  
-Actions → "Snyk scan" → Run workflow → выбрать `type` / заполнить `target` / выбрать `severity`.
+**Via the UI:**  
+Actions → "Snyk scan" → Run workflow → select `type` / fill in `target` / select `severity`.
 
-**Через CLI:**
+**Via the CLI:**
 
 ```bash
-# SCA-скан репозитория
+# SCA scan of a repository
 gh workflow run snyk-scan.yml \
   -f type=sca \
   -f target=epam/ai-dial-chat \
   -f severity=high
 
-# SAST-скан конкретной ветки
+# SAST scan of a specific branch
 gh workflow run snyk-scan.yml \
   -f type=code \
   -f target=epam/ai-dial-core \
   -f ref=main \
   -f severity=medium
 
-# Container-скан образа
+# Container scan of an image
 gh workflow run snyk-scan.yml \
   -f type=container \
   -f target=alpine:3.19 \
   -f severity=critical
 ```
 
-## Параметры
+## Parameters
 
-| Параметр   | Значения                             | По умолчанию | Описание |
+| Parameter  | Values                               | Default      | Description |
 |------------|--------------------------------------|--------------|----------|
-| `type`     | `sca` / `code` / `container`         | `sca`        | Тип скана |
-| `target`   | строка, обязательный                 | —            | **owner/repo** для sca/code; **image:tag** для container |
-| `ref`      | ветка/тег/SHA                        | `""` (default branch) | Git-реф для sca/code |
-| `severity` | `low` / `medium` / `high` / `critical` | `low`      | Минимальный уровень severity для репорта |
+| `type`     | `sca` / `code` / `container`         | `sca`        | Scan type |
+| `target`   | string, required                     | —            | **owner/repo** for sca/code; **image:tag** for container |
+| `ref`      | branch/tag/SHA                       | `""` (default branch) | Git ref for sca/code |
+| `severity` | `low` / `medium` / `high` / `critical` | `low`      | Minimum severity level to report |
 
-> **Важно:** для типов `sca` и `code` параметр `target` должен быть слагом вида `owner/repo`
-> (например `epam/ai-dial-chat`), потому что используется `actions/checkout`.  
-> Для типа `container` — полный image ref (`alpine:3.19`, `ghcr.io/org/image:tag`).
+> **Important:** for the `sca` and `code` types the `target` parameter must be a slug of the form `owner/repo`
+> (for example `epam/ai-dial-chat`), because `actions/checkout` is used.  
+> For the `container` type — a full image ref (`alpine:3.19`, `ghcr.io/org/image:tag`).
 
-## Где смотреть результаты
+## Where to find the results
 
-- **Run → Artifacts → `snyk-results-<type>`** — архив с `snyk.html`, `snyk.json`,
-  `snyk.sarif` (для sca/container; у `code` только SARIF). Открой `.html` в браузере —
-  готовый отчёт; `.json` — машиночитаемый; `.sarif` — для импорта в другие инструменты.
-- **Лог шага скана** в прогоне — текстовый вывод Snyk с найденными проблемами.
+- **Run → Artifacts → `snyk-results-<type>`** — an archive with `snyk.html`, `snyk.json`,
+  `snyk.sarif` (for sca/container; `code` only has SARIF). Open the `.html` in a browser —
+  a ready-made report; `.json` is machine-readable; `.sarif` is for importing into other tools.
+- **The scan step log** in the run — Snyk's text output with the issues found.
 
-Специально **не** публикуем в Security → Code scanning: стенд сканирует чужие
-произвольные таргеты, их уязвимости не относятся к этому репо и на вкладке Security
-только путали бы. Code scanning уместен, когда репо = то, что сканируешь.
+We deliberately do **not** publish to Security → Code scanning: the stand scans arbitrary
+third-party targets, their vulnerabilities are not related to this repo and on the Security tab
+would only cause confusion. Code scanning is appropriate when the repo = what you are scanning.
 
-## Ограничения (free-tier Snyk)
+## Limitations (free-tier Snyk)
 
-- `code` (SAST) требует включённого **Snyk Code** в настройках организации
-  (app.snyk.io → Settings → Snyk Code). Иначе — `SNYK-CODE-0005 / 403`.
-- Есть месячный лимит тестов на free-плане.
+- `code` (SAST) requires **Snyk Code** enabled in the organization settings
+  (app.snyk.io → Settings → Snyk Code). Otherwise — `SNYK-CODE-0005 / 403`.
+- There is a monthly test limit on the free plan.
 
-## Примечание
+## Note
 
-Этот репозиторий — *инструмент сканирования*, а не объект скана. Он не обязан содержать сканируемый код.
+This repository is a *scanning tool*, not an object of scanning. It is not required to contain the scanned code.
